@@ -1,120 +1,120 @@
 # herdr-hub
 
-**零 npm 依赖的单文件服务：把多台服务器上的 herdr agent 会话，聚合成一个手机可用的 Web 界面。**
+**English** | [简体中文](./README.zh-CN.md)
 
-> **English summary:** a single-file, zero-dependency Node.js service that aggregates herdr agent sessions (pi / codex) scattered across multiple servers into one token-protected, phone-friendly web UI — open a URL, see who needs you, tap once to unblock.
+**A zero-dependency, single-file service that turns herdr agent sessions scattered across multiple servers into one mobile-first web UI.**
 
-## 解决什么问题
+## What it solves
 
-场景（虚构但典型）：你有三台 GPU 服务器 `srv-a` / `srv-b` / `srv-c`，上面并行跑着十几个 herdr 里的对话 agent。它们干着干着会**停下来等你确认**——等一个 `y`、等一个回车才能继续。而你人不在电脑前：
+Scenario (fictional but typical): you have three GPU servers `srv-a` / `srv-b` / `srv-c`, each running a dozen conversation agents inside herdr. Mid-task they **stop and wait for your confirmation** — for a `y`, for an Enter — before they continue. You are not at your desk:
 
-- 手机上 SSH + tmux 几乎不可用：软键盘按不出 vim 键、网络一抖就断、80 列文本滚到绝望；
-- 等你回到桌前才发现，好几个 agent 已经干等了半小时。
+- SSH + tmux on a phone is barely usable: the soft keyboard cannot send vim keys, a flaky network drops the session, and 80 columns of text scroll into misery;
+- by the time you get back to your desk, several agents have been standing around for half an hour.
 
-herdr-hub 的答案就一句话：**打开一个 URL → 看谁需要你 → 点一下放行。**
+herdr-hub answers in one line: **open a URL → see who needs you → tap once to unblock.**
 
-## 演示（12 镜 · 33 秒 · 虚构数据）
+## Demo (12 shots · 33 seconds · fictional data)
 
 <p align="center">
-  <img width="300" alt="herdr-hub 演示：三服务器分页 · 对话详情 · ⌨ 键盘面板一键放行 · 🎤 语音输入（全部为虚构数据）" src="_demo/video/herdr_ui_final.gif">
+  <img width="300" alt="herdr-hub demo: three server tabs · conversation detail · ⌨ key panel one-tap unblock · 🎤 voice input (all fictional data)" src="_demo/video/herdr_ui_final.gif">
 </p>
 
-> 图中的服务器名 / 项目名 / 路径 / 对话全部是编造的演示数据，已过隐私自查（逐帧目视转录，禁词 `residual={}`、verdict `PASS`，证据见 `_demo/video/privacy_check.txt`，该文件不随仓库发布）。
+> The server names / project names / paths / conversations on screen are all fabricated demo data, and the footage has passed a privacy self-check (frame-by-frame visual transcription, forbidden term `residual={}`, verdict `PASS`; evidence in `_demo/video/privacy_check.txt`, which is not published with the repository).
 
-## 功能清单
+## Features
 
-- **三台服务器分页——聚合，但分开**：所有机器聚在一个 URL 里，但顶部标签页**每台独立一屏，绝不混在一起**，左右滑动切换。列表按 `需要你 / 工作中 / 空闲` 分组，每行显示状态点、仓库名、agent 类型和它最后说了什么（预览）。
-- **对话详情（聊天视图，不是终端）**：你的提问在右侧气泡；agent 回复渲染正文（代码块、表格、链接）；**转写**、**工具调用**收成一张卡（收起时一行 `› bash find …`，点开看输入输出）、**思考过程**默认折叠。
-- **⌨ 键盘面板一键放行**：`esc / ↑ / ↓ / tab / y / n / 1 / 2 / Ctrl-C`，直接送进那个 agent 的终端——agent 停着等 `y`/回车时，手机上点一下就继续。
-- **🔊 朗读**：详情页右上角用系统语音合成把最后一条回复念出来（念前先洗掉 markdown，代码块不会被念出来），再点停止。浏览器自带 `speechSynthesis`，零后端。
-- **⋯ 会话管理**：重新选择会话记录（重选）、查看会话文件路径、重新载入对话（重载）；右上 `▤` 还能在「对话 / 原始终端屏幕」间切换。
-- **🎤 语音输入**：录一段话填进输入框——**只填入、绝不自动发送**。
-- **令牌鉴权**：所有页面与接口都必须带 `?t=<令牌>`，缺省一律 401。
+- **Three server tabs — aggregated, but kept apart**: every machine behind a single URL, yet the tabs on top give **one screen per machine, never mixed**, swipe left/right to switch. Lists group by `needs you / working / idle`; each row shows a status dot, the repository name, the agent type, and what it said last (preview).
+- **Conversation detail (a chat view, not a terminal)**: your prompts bubble on the right; the agent's reply renders as body text (code blocks, tables, links); **transcript** and **tool calls** fold into a single card (collapsed: one line `› bash find …`; expand to see input and output); **thinking** stays collapsed by default.
+- **⌨ Key panel to unblock**: `esc / ↑ / ↓ / tab / y / n / 1 / 2 / Ctrl-C`, sent straight into that agent's terminal — when an agent sits waiting for `y`/Enter, one tap on your phone keeps it moving.
+- **🔊 Read-aloud**: the top-right of the detail page reads the latest reply aloud with system speech synthesis (markdown is stripped first, so code blocks are never spoken), tap again to stop. The browser's built-in `speechSynthesis`, zero backend.
+- **⋯ Session management**: re-pick the session record, show the session file path, reload the conversation; the `▤` in the top-right also toggles between the conversation and the raw terminal screen.
+- **🎤 Voice input**: record a snippet to fill the input box — **fills only, never auto-sends**.
+- **Token auth**: every page and every API requires `?t=<token>`; anything missing gets 401.
 
-## 架构要点
+## Architecture notes
 
-1. **每台服务器各自调用它自己的 herdr CLI（over SSH）**。hub 不内置任何 herdr 协议，只是 SSH 进每台机器、敲**那台机器自己的** herdr 命令（远端命令一律走 argv 数组 + POSIX 单引号转义拼装）。因此**不同 proto 版本可以共存、互不协商**——hub 从不和它们"谈协议"，实测 proto 16 与 19 两代混跑毫无冲突。
-2. **读写分离**：读 = 解析会话文件渲染成聊天气泡；写 = 发进 pane。解析失败不影响你发消息。
-3. **转写解析**：pi 与 codex 的会话文件格式不同（pi 给路径 `agent_session.kind="path"`，codex 给 id `kind="id"` → 对应 `rollout-*.jsonl`），且文件可能很大（codex 单个能到 20MB+），所以只 `tail` 尾部、绝不整读。
-4. **同 cwd 多 agent 时返回 `ambiguous` + 候选让你选，绝不猜**：herdr 报不出确切路径时，hub 列出候选让你认领一次并记住（`pane-bindings.json`），而不是挑一个显示错的对话——**宁可说分不清，也绝不显示另一个 agent 的对话**。
-5. **零 npm 依赖 = 单文件 `hub.mjs`**：只用 Node 内置模块，`npm install` 不存在这回事；图标是运行时用 zlib 手搓的 PNG。
-6. **健壮性**：服务器之间完全隔离（一台挂了只影响它那一页，15 秒退避）；只有拿到确切结论才写缓存（一次 SSH 抖动不会被记成"这台机器没有会话"）；会话文件路径做严格白名单校验（安全字符、必须 `.jsonl` 结尾、必须落在允许的 sessions 目录下）。
+1. **Each server runs its own herdr CLI (over SSH)**. The hub embeds no herdr protocol of its own — it SSHes into each machine and runs **that machine's own** herdr command (remote commands are always built from argv arrays with POSIX single-quote escaping). So **different proto versions coexist with no negotiation** — the hub never "talks protocol" to them; proto 16 and 19 ran side by side in testing without conflicts.
+2. **Read/write separation**: read = parse the session file and render chat bubbles; write = send into the pane. A parse failure never blocks you from sending a message.
+3. **Transcript parsing**: pi and codex session files differ in format (pi gives a path, `agent_session.kind="path"`; codex gives an id, `kind="id"` → the matching `rollout-*.jsonl`), and the files can be huge (a single codex one reaches 20MB+), so only the tail is `tail`ed — never the whole file.
+4. **Same-cwd ambiguity returns `ambiguous` plus candidates for you to pick — never a guess**: when herdr cannot report the exact path, the hub lists the candidates so you claim one once and it gets remembered (`pane-bindings.json`), instead of picking one and showing the wrong conversation — **prefer returning "ambiguous" over ever showing another agent's conversation**.
+5. **Zero npm dependencies = one file, `hub.mjs`**: Node built-ins only, `npm install` simply does not exist here; the icon is a PNG hand-rolled from zlib at runtime.
+6. **Robustness**: servers are fully isolated from each other (one going down only takes down its own tab, 15-second backoff); the cache is written only on a definite conclusion (one SSH hiccup never gets recorded as "this machine has no sessions"); session file paths pass strict allowlisting (safe characters, must end in `.jsonl`, must live under an allowed sessions directory).
 
-## 快速开始
+## Quick start
 
 ```bash
 git clone <repo>
-cp servers.example.json servers.json          # 填你自己的服务器
-cp hub.config.example.json hub.config.json    # 可选：语音服务地址
-echo "<自定义令牌>" > token.txt
-node hub.mjs                                  # 或双击 启动.cmd
+cp servers.example.json servers.json          # your servers
+cp hub.config.example.json hub.config.json    # optional: speech service URL
+echo "<your token>" > token.txt
+node hub.mjs
 ```
 
-浏览器打开 `http://<host>:8787/?t=<令牌>`（首次打开后令牌存进浏览器，之后不用再敲）。
+Open `http://<host>:8787/?t=<token>` in a browser (the token is stored in the browser after the first visit, so you never retype it).
 
-手机：和 hub 同一内网 / Tailscale 网内直接访问；Safari「分享 → 添加到主屏幕」，之后是全屏的、跟原生 App 一样。
+Phone: reach it directly from the same LAN or inside Tailscale; in Safari use "Share → Add to Home Screen" and from then on it runs full-screen, like a native app.
 
-> `pane-bindings.example.json` 是参考样例，通常不需要手动建——认领发生时前端会自动写 `pane-bindings.json`。
+> `pane-bindings.example.json` is a reference sample — you normally never create it by hand; the frontend writes `pane-bindings.json` automatically when a claim happens.
 
-## 配置说明
+## Configuration
 
-### `servers.json`（必填，参考 `servers.example.json`）
+### `servers.json` (required; see `servers.example.json`)
 
-| 字段 | 含义 |
+| Field | Meaning |
 |---|---|
-| `id` | 短名，用于面板分页和 `pane-bindings` 的 key（如 `srv-a`） |
-| `label` | 界面上显示的名字 |
-| `host` | SSH 目标（可直接用 `~/.ssh/config` 里的 Host 别名） |
-| `bin` | **该机器上 herdr 可执行文件的绝对路径**——非交互式 SSH 的 PATH 通常不含 `~/.local/bin`，必须写绝对路径（踩过的坑） |
+| `id` | Short name, used as the panel's tab key and in `pane-bindings` (e.g. `srv-a`) |
+| `label` | Name displayed in the UI |
+| `host` | SSH target (can be a Host alias straight from `~/.ssh/config`) |
+| `bin` | **Absolute path of the herdr executable on that machine** — a non-interactive SSH PATH usually omits `~/.local/bin`, so an absolute path is mandatory (a lesson learned the hard way) |
 
-加服务器 = 加一行，不用改任何代码。
+Adding a server = adding one row; no code changes.
 
-### `hub.config.json`（可选，语音识别，参考 `hub.config.example.json`）
+### `hub.config.json` (optional, speech recognition; see `hub.config.example.json`)
 
-| 字段 | 含义 |
+| Field | Meaning |
 |---|---|
-| `asr.url` | 你本地语音模型的接口，例：`http://127.0.0.1:8123/v1/audio/transcriptions` |
-| `asr.token` | 需要鉴权就填，否则留空 |
-| `asr.language` | 如 `zh` |
-| `asr.field` | 音频字段名，默认 `file` |
-| `asr.model` | 模型名，可留空 |
-| `asr.timeoutMs` | 超时，默认 60000 |
+| `asr.url` | Your local speech model endpoint, e.g. `http://127.0.0.1:8123/v1/audio/transcriptions` |
+| `asr.token` | Fill in if the endpoint needs auth, otherwise leave empty |
+| `asr.language` | e.g. `zh` |
+| `asr.field` | Audio field name, default `file` |
+| `asr.model` | Model name, may stay empty |
+| `asr.timeoutMs` | Timeout, default 60000 |
 
-协议：hub 向 `asr.url` 发 `multipart/form-data`（`file` = 音频二进制 webm/m4a/wav，外加 `language`），你的服务返回 `{"text": "..."}` 即可——whisper.cpp server 的 `/inference` 和 OpenAI 兼容的 `/v1/audio/transcriptions` 都直接符合，**不用改代码**，填好刷新页面 🎤 就出现。
+Protocol: the hub POSTs `multipart/form-data` to `asr.url` (`file` = audio binary, webm/m4a/wav, plus `language`) and your service returns `{"text": "..."}` — whisper.cpp server's `/inference` and the OpenAI-compatible `/v1/audio/transcriptions` both qualify as-is, **no code changes**: fill it in, refresh the page, and 🎤 appears.
 
-### `pane-bindings.json`（自动生成，参考 `pane-bindings.example.json`）
+### `pane-bindings.json` (auto-generated; see `pane-bindings.example.json`)
 
-key = `<serverId>:<paneId>`，value = 该 agent 的会话文件绝对路径。只在"同目录并行多 agent、herdr 报不出路径、你手动认领"时写入。
+key = `<serverId>:<paneId>`, value = the absolute path of that agent's session file. Written only in the "several agents in the same directory, herdr cannot report the path, you claim it by hand" case.
 
 ### `token.txt`
 
-一行自定义令牌，别提交进任何仓库（本仓已 gitignore）。
+One line holding your own token; never commit it to any repo (already gitignored here).
 
-### 环境变量
+### Environment variables
 
-`HUB_PORT`（默认 8787）、`HUB_BIND`（默认 0.0.0.0）、`HUB_TOKEN`（设为 `off` 关闭鉴权）、`HUB_TAIL_BYTES`（转写读取的尾部字节数）。
+`HUB_PORT` (default 8787), `HUB_BIND` (default 0.0.0.0), `HUB_TOKEN` (set to `off` to disable auth), `HUB_TAIL_BYTES` (how many trailing bytes of a transcript to read).
 
-## 安全
+## Security
 
-- **令牌必带，缺省 401**：页面和所有 `/api/*` 都要求 `?t=` 或等价头。
-- **建议只绑内网或 Tailscale，不要直接暴露公网**——这个 hub 拿着你所有服务器的 SSH 通路。
-- `servers.json` / `token.txt` / `hub.config.json` / `pane-bindings.json` **已写进 `.gitignore`，不会上传**；仓库里只有虚构值的 `*.example.json`。
-- **HTTPS**（iOS 上想拿麦克风权限，**必须 HTTPS**）——用 Tailscale 一条命令：
+- **Token required, 401 otherwise**: pages and every `/api/*` demand `?t=` or an equivalent header.
+- **Bind to the LAN or Tailscale only — do not expose it to the public internet** — this hub holds the SSH path into all of your servers.
+- `servers.json` / `token.txt` / `hub.config.json` / `pane-bindings.json` **are listed in `.gitignore` and never upload**; the repo carries only `*.example.json` with fictional values.
+- **HTTPS** (iOS **requires HTTPS** before it grants microphone access) — one Tailscale command:
 
   ```bash
   tailscale serve --bg --https 443 http://127.0.0.1:8787
   ```
 
-  之后手机走 `https://<你的机器名>.<你的 tailnet 域名>` 访问，证书由 Tailscale 自动签发。
+  Your phone then visits `https://<your-machine-name>.<your-tailnet-domain>`, with the certificate issued automatically by Tailscale.
 
-## 已知限制（诚实版）
+## Known limitations (honest version)
 
-- **需要跑 hub 的这台机器在线**：hub 本质上是"本机 → 各服务器"的 SSH 桥，本机关机就用不了。想 24×7 可以挪到一台常开的机器上 `node hub.mjs`，无平台依赖。
-- **状态靠 6 秒轮询，不是推送**（对话详情页 4 秒），打开列表后预览是后台小步补的，个别行要等十几秒。
-- **语音输入当前硬编码直连 `127.0.0.1:8123`**：手机浏览器访问的是手机自己的回环地址，**直连不通**。hub 端已有 `/api/transcribe` 代理接口就位，前端改走它是一个明确的 TODO。
-- **发送路径未经端到端实测**（不会为了测试往你正干活的 agent 里注入文本）；失败检测已验证，想检查命令构造可用 `POST /api/send` 带 `{"dry":true}`，它只回显将要执行的命令。
-- 多行输入会被合并成单行发送（TUI 里裸换行等于"提交"）；hub 重启后「持续时长」清零，此时不显示而不是显示假的"刚刚"。
+- **The machine running the hub must stay online**: the hub is essentially an SSH bridge from this machine to each server; shut this machine down and it stops working. For 24×7, move it to an always-on machine and run `node hub.mjs` — no platform dependencies.
+- **Status comes from 6-second polling, not push** (4 seconds on the conversation detail page); once a list is open, previews are backfilled in the background, so individual rows can take ten-plus seconds.
+- **Voice input currently hardcodes `127.0.0.1:8123`**: a phone browser resolves that to the phone's own loopback address, so **a direct connection fails**. The hub already ships a `/api/transcribe` proxy endpoint; moving the frontend onto it is a clear TODO.
+- **The send path has never been tested end-to-end** (text is never injected into an agent you are actively working with just to test); failure detection is verified, and `POST /api/send` with `{"dry":true}` echoes back the command it would run, if you want to inspect command construction.
+- Multi-line input is collapsed to a single line before sending (a bare newline in a TUI means "submit"); after a hub restart the "duration" counter resets, and it shows nothing rather than a fake "just now".
 
 ## License
 
-MIT — 见 [LICENSE](LICENSE)。
+MIT — see [LICENSE](LICENSE).
