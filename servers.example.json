@@ -1,0 +1,23 @@
+{
+  "_note": "每台跑着 herdr 的服务器一行。bin 是该机器上 herdr 可执行文件的绝对路径（非交互式 SSH 的 PATH 通常不含 ~/.local/bin，所以必须写绝对路径）。id / label / host 按你的实际情况随便起名，id 会出现在面板分页和 pane-bindings 的 key 里。",
+  "servers": [
+    {
+      "id": "srv-a",
+      "label": "srv-a",
+      "host": "srv-a",
+      "bin": "/home/user/.local/bin/herdr"
+    },
+    {
+      "id": "srv-b",
+      "label": "srv-b",
+      "host": "srv-b",
+      "bin": "/home/user/.local/bin/herdr"
+    },
+    {
+      "id": "srv-c",
+      "label": "srv-c",
+      "host": "srv-c",
+      "bin": "/home/user/.local/bin/herdr"
+    }
+  ]
+}

@@ -1,0 +1,1092 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Herdr">
+<meta name="theme-color" content="#F2F2F7">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Herdr</title>
+<style>
+:root{
+  color-scheme:light dark;
+  /* ── iOS 亮色（默认，白天用） ── */
+  --bg:#F2F2F7; --card:#FFFFFF; --card2:#F2F2F7; --press:#E5E5EA;
+  --sep:rgba(60,60,67,.12); --sep-strong:rgba(60,60,67,.45);
+  --text:#000000; --dim:rgba(60,60,67,.75); --faint:rgba(60,60,67,.35);
+  --accent:#007AFF; --user:#007AFF;
+  --blocked:#FF3B30; --done:#34C759; --working:#FF9500; --idle:rgba(60,60,67,.35);
+  --bar:rgba(249,249,249,.72); --bar-solid:#F9F9F9;
+  --pill:rgba(118,118,128,.12); --code:rgba(118,118,128,.12);
+  --scrim:rgba(0,0,0,.4); --toast:rgba(60,60,67,.94); --toast-fg:#FFFFFF;
+  --errbg:rgba(255,59,48,.10); --errline:rgba(255,59,48,.35);
+  /* 文本级状态色（小字必须 ≥4.6:1；圆点等非文本指示仍用鲜色 --done/--working/--blocked） */
+  --st-blocked:#D70015; --st-done:#1E7A3C; --st-working:#B25000;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  --vh:100dvh; --top-h:104px; --nav-h:58px; --comp-h:64px;
+  --ease-ios:cubic-bezier(.32,.72,0,1);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    /* ── iOS 暗色 ── */
+    --bg:#000000; --card:#1C1C1E; --card2:#2C2C2E; --press:#3A3A3C;
+    --sep:rgba(255,255,255,.13); --sep-strong:rgba(255,255,255,.5);
+    --text:#FFFFFF; --dim:rgba(235,235,245,.6); --faint:rgba(235,235,245,.32);
+    --accent:#0A84FF; --user:#0A84FF; --idle:rgba(235,235,245,.32);
+    --blocked:#FF453A; --done:#30D158; --working:#FF9F0A;
+    --bar:rgba(28,28,30,.72); --bar-solid:#1C1C1E;
+    --pill:rgba(118,118,128,.24); --code:rgba(118,118,128,.22);
+    --scrim:rgba(0,0,0,.5); --toast:rgba(255,255,255,.94); --toast-fg:#000000;
+    --errbg:rgba(255,69,58,.12); --errline:rgba(255,69,58,.40);
+    --st-blocked:#FF453A; --st-done:#30D158; --st-working:#FF9F0A;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+body{background:var(--bg);color:var(--text);
+  font:100%/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","PingFang SC","Helvetica Neue",sans-serif;
+  height:var(--vh);overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+a{color:var(--accent)}
+.blur{background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px)}
+button,.row,.tab,.key,.cand,.act,summary{user-select:none;-webkit-user-select:none;
+  transition:transform 150ms ease-out,background-color .15s ease,opacity .15s ease}
+/* 按压即时反馈：pointerdown 当帧加 .pressed（JS 驱动），不等 click —— 此规则必须在合并 transition 规则之后才不被覆盖 */
+.pressed{transform:scale(.97);transition:transform 90ms ease-out}
+
+/* ── 列表：磨砂顶栏浮在最上层，内容从下面滚过 ── */
+#shell{position:relative;height:var(--vh);overflow:hidden}
+#topbar{position:absolute;top:0;left:0;right:0;z-index:10;
+  padding:calc(var(--safe-t) + 8px) var(--safe-r) 0 var(--safe-l);
+  border-bottom:0}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;padding:2px 16px 6px}
+.topbar-row h1{margin:0;font-size:1.375rem;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.hub-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dim);margin-left:7px;vertical-align:middle;transition:background-color .3s}
+.hub-dot.on{background:var(--done);box-shadow:0 0 8px var(--done)}
+#refresh{width:44px;height:44px;margin:-4px -12px -4px 0;border-radius:50%;display:grid;place-items:center;
+  color:var(--accent);font-size:1.25rem;line-height:1;transition:rotate .45s cubic-bezier(.32,.72,0,1)}
+#refresh.spin{rotate:360deg}
+#tabs{display:flex;gap:8px;padding:0 16px 8px;overflow-x:auto;scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:44px;padding:0 15px;border-radius:10px;background:var(--pill);
+  font-size:.875rem;font-weight:600;letter-spacing:-.01em;color:var(--dim);white-space:nowrap}
+.tab.on{background:var(--accent);color:#fff}
+.tab .sdot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55}
+.tab.err .sdot{background:var(--blocked);opacity:1}
+.tab .n{font-size:.75rem;font-variant-numeric:tabular-nums}
+#pager{position:absolute;inset:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;
+  overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#pager::-webkit-scrollbar{display:none}
+.page{flex:0 0 100%;width:100%;height:100%;overflow-y:auto;scroll-snap-align:start;scroll-snap-stop:always;
+  padding:calc(var(--top-h) + 6px) var(--safe-r) calc(var(--safe-b) + 28px) var(--safe-l);
+  overscroll-behavior-y:contain;scrollbar-width:none}
+.page::-webkit-scrollbar{display:none;width:0;height:0}
+.srv-head{padding:16px 16px 4px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.srv-head .name{font-size:1.5rem;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.srv-head .meta{font-size:.8125rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.grp{padding:14px 16px 2px;font-size:.75rem;font-weight:600;color:var(--dim);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.list{margin:8px 16px 0;background:var(--card);border-radius:14px;overflow:hidden}
+.row{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:13px 16px;min-height:44px;border-bottom:.5px solid var(--sep)}
+.list .row:last-child{border-bottom:0}
+.row:active{background:var(--press)}
+.dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:6px;background:var(--idle)}
+.dot.blocked{background:var(--blocked);animation:pulse 1.7s ease-in-out infinite}
+.dot.done{background:var(--done)}
+.dot.working{background:var(--working);animation:pulse 1.7s ease-in-out infinite}
+.dot.unknown{background:var(--faint);opacity:.45}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.row .body{flex:1 1 auto;min-width:0}
+.row .l1{display:flex;align-items:baseline;gap:7px}
+.row .repo{font-weight:600;font-size:.9375rem;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{flex:0 0 auto;font-size:.6875rem;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--pill);color:var(--dim)}
+.row .time{margin-left:auto;flex:0 0 auto;font-size:.75rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.row .pv{font-size:.8125rem;color:var(--dim);margin-top:4px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .l3{font-size:.75rem;color:var(--dim);margin-top:5px;display:flex;gap:8px}
+.row .l3 .focus{color:var(--accent);font-weight:600}
+/* 直接标签：状态词直接带系统状态色（绿/橙/红），不再是含糊的灰字 */
+.l3 .st{font-weight:600}
+.l3 .st.blocked{color:var(--st-blocked)}
+.l3 .st.done{color:var(--st-done)}
+.l3 .st.working{color:var(--st-working)}
+.l3 .st.idle,.l3 .st.unknown{color:var(--dim)}
+.empty{padding:44px 22px;text-align:center;color:var(--dim);font-size:.9375rem;line-height:1.7}
+.empty .eico{font-size:1.75rem;line-height:1;margin-bottom:10px}
+.srv-err{margin:12px 16px 0;padding:13px 14px;border-radius:12px;background:var(--errbg);border:.5px solid var(--errline);font-size:.875rem}
+.srv-err b{color:var(--st-blocked)}
+.skel{position:relative;height:70px;margin:8px 16px 0;border-radius:14px;background:var(--card);animation:sk 1.3s ease-in-out infinite}
+.skel::before{content:"";position:absolute;left:16px;top:16px;width:34px;height:34px;border-radius:50%;background:var(--press)}
+.skel::after{content:"";position:absolute;left:62px;top:21px;width:38%;height:13px;border-radius:7px;background:var(--press)}
+@keyframes sk{0%,100%{opacity:.32}50%{opacity:.72}}
+
+/* ── 详情（聊天）：从右滑入/滑出（对称路径），磨砂导航与输入栏，内容从下滚过 ── */
+#detail{position:fixed;inset:0;z-index:40;background:var(--bg);height:var(--vh);
+  transform:translateX(100%);transition:transform .36s var(--ease-ios);will-change:transform;pointer-events:none}
+#detail.show{transform:translateX(0);pointer-events:auto}
+#detail .nav{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:8px;
+  padding:calc(var(--safe-t) + 6px) calc(8px + var(--safe-r)) 8px calc(8px + var(--safe-l));
+  border-bottom:0}
+.back{display:inline-flex;align-items:center;min-height:44px;padding:0 10px 0 4px;color:var(--accent);
+  font-size:1.0625rem;font-weight:400;letter-spacing:-.01em}
+.back:active{opacity:.5}
+.nav .titles{flex:1 1 auto;min-width:0;text-align:center;padding:0 2px}
+.nav .t1{font-size:.9375rem;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px}
+.nav .t1 .dot{margin-top:0}
+.nav .t2{font-size:.75rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.icon-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--accent);
+  font-size:1.0625rem;line-height:1;flex:0 0 auto;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Apple Color Emoji","Noto Color Emoji",sans-serif}
+.icon-btn:active{opacity:.5}
+
+#chat{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(var(--nav-h) + 10px) calc(12px + var(--safe-r)) calc(var(--comp-h) + 16px) calc(12px + var(--safe-l));
+  scroll-behavior:smooth;overscroll-behavior-y:contain;scrollbar-width:none}
+#chat::-webkit-scrollbar{display:none;width:0;height:0}
+.msg{margin-bottom:12px;display:flex}
+.msg.user{justify-content:flex-end}
+.bub{max-width:86%;padding:10px 14px;border-radius:18px;background:var(--card);font-size:1.0625rem;line-height:1.4;overflow-wrap:break-word}
+.msg.user .bub{background:var(--user);color:#fff;border-bottom-right-radius:6px}
+.msg.assistant .bub{border-bottom-left-radius:6px}
+.bub p{margin:0 0 8px}.bub p:last-child{margin-bottom:0}
+.bub .h{font-weight:700;margin:10px 0 5px;font-size:1rem;letter-spacing:-.01em}
+.bub .li{margin:3px 0 3px 2px;padding-left:12px;position:relative}
+.bub .li:before{content:"·";position:absolute;left:2px;color:var(--dim)}
+.bub code{background:var(--code);padding:2px 5px;border-radius:5px;font-size:.8125rem;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;word-break:break-word}
+.bub pre.code{background:var(--code);border:.5px solid var(--sep);border-radius:12px;padding:10px 12px;margin:8px 0;
+  overflow-x:auto;font-size:.8125rem;line-height:1.5;font-family:ui-monospace,"SF Mono",Menlo,monospace;white-space:pre;-webkit-overflow-scrolling:touch}
+.tbl{margin:8px 0;padding:8px 10px;background:var(--code);border:.5px solid var(--sep);border-radius:12px;
+  overflow-x:auto;font-size:.8125rem;font-family:ui-monospace,"SF Mono",Menlo,monospace;white-space:pre;-webkit-overflow-scrolling:touch}
+.tbl .mdt{border-collapse:collapse;font:inherit;white-space:nowrap}
+.tbl .mdt th,.tbl .mdt td{padding:5px 14px 5px 0;text-align:left;border-bottom:.5px solid var(--sep)}
+.tbl .mdt th{font-weight:700}
+.tbl .mdt tr:last-child td{border-bottom:0}
+.bub a{word-break:break-all}
+
+/* 工具调用卡 */
+.tool{margin-bottom:10px}
+.tool summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 12px;border-radius:12px;
+  background:var(--card2);border:.5px solid var(--sep);font-size:.8125rem;color:var(--dim);cursor:pointer}
+.tool summary::-webkit-details-marker{display:none}
+.tool .tname{font-weight:600;color:var(--text);flex:0 0 auto;font-size:.8125rem}
+.tool .tcmd{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:ui-monospace,Menlo,monospace;font-size:.71875rem}
+.tool .arrow{flex:0 0 auto;transition:transform .2s;font-size:.9375rem}
+.tool[open] .arrow{transform:rotate(90deg)}
+.tool .inner{padding:9px 11px 2px}
+.tool pre{background:var(--code);border-radius:10px;padding:9px 10px;margin:0 0 8px;overflow-x:auto;
+  font-size:.75rem;line-height:1.5;font-family:ui-monospace,"SF Mono",Menlo,monospace;white-space:pre;-webkit-overflow-scrolling:touch}
+.tool .lbl{font-size:.6875rem;color:var(--dim);margin:0 0 4px;font-weight:700;letter-spacing:.04em}
+.tool.err summary{border-color:var(--errline);background:var(--card)}
+.tool.err .tname{color:var(--st-blocked)}
+/* 思考（折叠） */
+.think{margin-bottom:10px}
+.think summary{list-style:none;font-size:.8125rem;color:var(--dim);min-height:44px;padding:12px 14px;border-radius:12px;cursor:pointer;
+  background:transparent;border:.5px dashed var(--sep);display:inline-flex;gap:6px;align-items:center}
+.think summary::-webkit-details-marker{display:none}
+.think .tx{padding:9px 2px 0;font-size:.875rem;color:var(--dim);white-space:pre-wrap;line-height:1.55}
+.sys{text-align:center;font-size:.75rem;color:var(--dim);margin:14px 0}
+
+/* 底部输入（磨砂，含刘海/Home 指示条安全区） */
+#composer{position:absolute;bottom:0;left:0;right:0;z-index:3;border-top:0;
+  padding:10px calc(10px + var(--safe-r)) calc(var(--safe-b) + 10px) calc(10px + var(--safe-l))}
+.inputrow{display:flex;gap:8px;align-items:flex-end}
+#text{flex:1 1 auto;resize:none;border:.5px solid var(--sep);background:var(--card);color:var(--text);
+  border-radius:20px;padding:10px 14px;font-family:inherit;font-size:1rem;line-height:1.4;
+  max-height:8.125rem;min-height:40px;outline:none;transition:border-color .18s ease,background-color .18s ease}
+#text::placeholder{color:var(--dim)}
+#text:focus{border-color:var(--accent)}
+.rbtn,#send{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+.rbtn{background:var(--pill);color:var(--dim);font-size:1.0625rem;line-height:1;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Apple Color Emoji","Noto Color Emoji",sans-serif}
+.rbtn.rec{background:var(--blocked);color:#fff}
+.rbtn.rec.busy{animation:pulse 1s ease-in-out infinite}
+#send{background:var(--accent);color:#fff;font-size:1.125rem;font-weight:600;line-height:1}
+#send[disabled]{opacity:.4}
+
+/* 底部面板（iOS sheet：抓手 + 圆角 + 从下滑入） */
+.sheet{position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:60;background:var(--card);
+  border-radius:16px 16px 0 0;padding:6px calc(16px + var(--safe-r)) calc(var(--safe-b) + 16px) calc(16px + var(--safe-l));
+  transform:translateY(calc(105% + var(--kb,0px)));transition:transform .34s var(--ease-ios);
+  max-height:80vh;overflow-y:auto;overscroll-behavior:contain;
+  box-shadow:0 -8px 40px rgba(0,0,0,.3)}
+.sheet::before{content:"";display:block;width:36px;height:5px;border-radius:3px;background:var(--faint);opacity:.5;margin:4px auto 10px}
+.sheet.show{transform:translateY(0)}
+.sheet h3{margin:0 0 4px;font-size:1.0625rem;font-weight:600;letter-spacing:-.01em}
+.sheet .sub{font-size:.8125rem;color:var(--dim);margin:0 0 12px;line-height:1.55}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.cand{width:100%;min-height:44px;text-align:left;padding:12px 14px;border-radius:12px;background:var(--card2);margin-bottom:8px;border:.5px solid var(--sep)}
+.cand:active{background:var(--press)}
+.cand .cl{font-size:.875rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cand .cm{font-size:.6875rem;color:var(--dim);margin-top:5px;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+.sheet .keys{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.key{min-width:46px;min-height:44px;padding:0 14px;border-radius:11px;background:var(--pill);font-size:.875rem;font-weight:600;color:var(--text);display:grid;place-items:center}
+.key:active{background:var(--accent);color:#fff}
+.key.danger{color:var(--st-blocked)}
+.sheet .act{width:100%;min-height:48px;display:flex;align-items:center;text-align:left;
+  padding:12px 14px;border-radius:12px;background:var(--card2);margin-bottom:8px;
+  font-size:.9375rem;color:var(--accent)}
+.sheet .act:last-child{margin-bottom:0}
+#scrim{position:fixed;inset:0;background:var(--scrim);z-index:55;opacity:0;pointer-events:none;transition:opacity .25s ease}
+#scrim.show{opacity:1;pointer-events:auto}
+#toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 104px + var(--kb,0px));transform:translate(-50%,14px);
+  background:var(--toast);color:var(--toast-fg);padding:11px 18px;border-radius:14px;
+  font-size:.84375rem;max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 32px);text-align:center;opacity:0;pointer-events:none;
+  transition:opacity .22s ease,transform .22s ease;z-index:99;box-shadow:0 8px 28px rgba(0,0,0,.28)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:var(--st-blocked);color:var(--toast-fg)}
+#rec{position:fixed;left:50%;bottom:calc(var(--safe-b) + 104px + var(--kb,0px));transform:translateX(-50%);
+  background:var(--st-blocked);color:var(--toast-fg);padding:10px 16px;border-radius:22px;font-size:.8125rem;font-weight:600;
+  display:none;z-index:98;align-items:center;gap:8px}
+#rec.show{display:flex}
+#rec .b{width:8px;height:8px;border-radius:50%;background:var(--toast-fg);animation:pulse 1s ease-in-out infinite}
+#rec .recx{min-height:32px;padding:0 12px;border-radius:16px;background:rgba(255,255,255,.22);color:#fff;
+  font-size:.8125rem;font-weight:700;flex:0 0 auto;cursor:pointer}
+#rec .recx:active{background:rgba(255,255,255,.42)}
+
+/* scroll edge：内容与磨砂栏的交界用 14px 渐隐，而不是一条硬发丝线（skill §12）；渐隐沉在栏内控件之下 */
+#topbar::after,#detail .nav::after{content:"";position:absolute;left:0;right:0;bottom:0;height:14px;z-index:0;
+  pointer-events:none;background:linear-gradient(to bottom,transparent,var(--sep))}
+#composer::before{content:"";position:absolute;left:0;right:0;top:0;height:14px;z-index:0;
+  pointer-events:none;background:linear-gradient(to top,transparent,var(--sep))}
+.topbar-row,#tabs,#detail .nav>*,.inputrow{position:relative;z-index:1}
+
+/* ── 可达性 1/3：减弱动效（滑动/弹簧 → 短淡入） ── */
+@media (prefers-reduced-motion:reduce){
+  #detail{transform:none;opacity:0;visibility:hidden;transition:opacity .16s ease,visibility 0s linear .16s}
+  #detail.show{opacity:1;visibility:visible;transition:opacity .16s ease}
+  .sheet{transform:none;opacity:0;visibility:hidden;transition:opacity .16s ease,visibility 0s linear .16s}
+  .sheet.show{opacity:1;visibility:visible;transition:opacity .16s ease}
+  button,.row,.tab,.key,.cand,.act,summary{transition:filter .12s ease,background-color .12s ease,opacity .12s ease}
+  .pressed{transform:none;filter:brightness(.88);transition:filter .1s ease}
+  #refresh,#refresh.spin,#refresh.pressed{transform:none;transition:none;rotate:none}
+  .dot,.dot.blocked,.dot.working,#rec .b,.rbtn.rec.busy{animation:none}
+  .skel{animation:none;opacity:.6}
+  #chat{scroll-behavior:auto}
+  #toast{transform:translate(-50%,0);transition:opacity .15s ease}
+  #toast.show{transform:translate(-50%,0)}
+}
+/* ── 可达性 2/3：减弱透明（磨砂 → 实底；带文字的 toast 同步退实底） ── */
+@media (prefers-reduced-transparency:reduce){
+  .blur{background:var(--bar-solid);backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+@media (prefers-reduced-transparency:reduce) and (prefers-color-scheme:light){ :root{--toast:rgb(60 60 67)} }
+@media (prefers-reduced-transparency:reduce) and (prefers-color-scheme:dark){ :root{--toast:rgb(255 255 255)} }
+/* ── 可达性 3/3：高对比（实底 + 明显描边） ── */
+@media (prefers-contrast:more){
+  :root{--sep:rgba(60,60,67,.55);--dim:rgba(60,60,67,.85);--faint:rgba(60,60,67,.6)}
+  .blur{background:var(--bar-solid);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .list,.sheet,.bub,.cand,.act,.tool summary,.tbl,#text{border:1px solid var(--sep-strong)}
+  .msg.user .bub{border-color:rgba(255,255,255,.7)}
+  #topbar,#detail .nav{border-bottom:1px solid var(--sep-strong)}
+  #composer{border-top:1px solid var(--sep-strong)}
+  #topbar::after,#detail .nav::after,#composer::before{display:none}
+}
+@media (prefers-contrast:more) and (prefers-color-scheme:dark){
+  :root{--sep:rgba(255,255,255,.6);--dim:rgba(235,235,245,.85);--faint:rgba(235,235,245,.6)}
+}
+/* ── 键盘可达：焦点落点必须可见 ── */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#text:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(0,122,255,.3)}
+
+/* ── 宽屏（桌面/平板）：内容居中一栏，与卡片对齐 ── */
+@media (min-width:640px){
+  .page{padding-left:max(var(--safe-l),calc((100% - 600px)/2));padding-right:max(var(--safe-r),calc((100% - 600px)/2))}
+  .topbar-row,#tabs{padding-left:calc((100% - 600px)/2 + 16px);padding-right:calc((100% - 600px)/2 + 16px)}
+  #detail .nav{padding-left:calc((100% - 600px)/2 + 8px + var(--safe-l));padding-right:calc((100% - 600px)/2 + 8px + var(--safe-r))}
+  #chat{padding-left:calc((100% - 600px)/2 + 16px + var(--safe-l));padding-right:calc((100% - 600px)/2 + 16px + var(--safe-r))}
+  #composer{padding-left:calc((100% - 600px)/2 + 16px + var(--safe-l));padding-right:calc((100% - 600px)/2 + 16px + var(--safe-r))}
+}
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <header id="topbar" class="blur">
+    <div class="topbar-row">
+      <h1>Herdr<span class="hub-dot" id="hubdot"></span></h1>
+      <button id="refresh" aria-label="刷新">↻</button>
+    </div>
+    <nav id="tabs"></nav>
+  </header>
+  <main id="pager"></main>
+</div>
+
+<section id="detail" aria-hidden="true" inert>
+  <div class="nav blur">
+    <button class="back" id="back">‹ 返回</button>
+    <div class="titles">
+      <div class="t1"><span class="dot" id="ddot"></span><span id="dt1">—</span></div>
+      <div class="t2" id="dt2">—</div>
+    </div>
+    <button class="icon-btn" id="speak" title="朗读最后一条回复" aria-label="朗读最后一条回复" aria-pressed="false">🔊</button>
+    <button class="icon-btn" id="vtoggle" title="切换对话/原始屏幕" aria-label="切换对话/原始屏幕" aria-pressed="false">▤</button>
+    <button class="icon-btn" id="more" title="更多" aria-label="更多操作">⋯</button>
+  </div>
+  <div id="chat"></div>
+  <div id="composer" class="blur">
+    <div class="inputrow">
+      <button class="rbtn" id="mic" title="语音输入" aria-label="语音输入" aria-pressed="false" style="display:none">🎤</button>
+      <textarea id="text" rows="1" placeholder="给这个 agent 发消息…" enterkeyhint="send" inputmode="text" autocapitalize="sentences" autocorrect="off" autocomplete="off" spellcheck="false"></textarea>
+      <button class="rbtn" id="kbd" title="按键" aria-label="发送按键">⌨</button>
+      <button id="send" aria-label="发送">↑</button>
+    </div>
+  </div>
+</section>
+
+<div id="scrim"></div>
+
+<div class="sheet" id="pickSheet" role="dialog" aria-modal="true" aria-labelledby="pickT" inert>
+  <h3 id="pickT">这是哪个会话？</h3>
+  <p class="sub" id="pickWhy"></p>
+  <div id="pickList"></div>
+</div>
+
+<div class="sheet" id="keySheet" role="dialog" aria-modal="true" aria-labelledby="keyT" inert>
+  <h3 id="keyT">发送按键</h3>
+  <p class="sub">某些 agent 会停下来等你确认，这些键直接送到它的终端。</p>
+  <div class="keys">
+    <button class="key" data-key="enter">↵ 回车</button>
+    <button class="key" data-key="esc">esc</button>
+    <button class="key" data-key="up">↑</button>
+    <button class="key" data-key="down">↓</button>
+    <button class="key" data-key="tab">tab</button>
+    <button class="key" data-key="y">y</button>
+    <button class="key" data-key="n">n</button>
+    <button class="key" data-key="1">1</button>
+    <button class="key" data-key="2">2</button>
+    <button class="key danger" data-key="ctrl+c">Ctrl-C</button>
+  </div>
+</div>
+
+<div class="sheet" id="moreSheet" role="dialog" aria-modal="true" aria-labelledby="moreTitle" inert>
+  <h3 id="moreTitle">操作</h3>
+  <button class="act" data-act="repick">重新选择会话记录</button>
+  <button class="act" data-act="path">显示会话文件路径</button>
+  <button class="act" data-act="reload">重新载入对话</button>
+</div>
+
+<div class="sheet" id="pathSheet" role="dialog" aria-modal="true" aria-labelledby="pathT" inert>
+  <h3 id="pathT">会话文件路径</h3>
+  <p class="sub" id="pathTx" style="font-family:ui-monospace,Menlo,monospace;word-break:break-all;user-select:text;-webkit-user-select:text"></p>
+  <button class="act" id="pathCopy">拷贝路径</button>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="rec" role="status" aria-live="polite"><span class="b"></span><span id="recTx">正在录音… 0:00</span><button id="recCancel" class="recx" aria-label="取消录音" style="display:none">✕ 取消</button></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const el = { tabs:$('tabs'), pager:$('pager'), refresh:$('refresh'), hubdot:$('hubdot'), detail:$('detail'),
+  dt1:$('dt1'), dt2:$('dt2'), ddot:$('ddot'), chat:$('chat'), text:$('text'), send:$('send'), back:$('back'),
+  vtoggle:$('vtoggle'), more:$('more'), mic:$('mic'), kbd:$('kbd'), toast:$('toast'), scrim:$('scrim'),
+  speak:$('speak'),
+  pickSheet:$('pickSheet'), pickList:$('pickList'), pickWhy:$('pickWhy'), keySheet:$('keySheet'),
+  moreSheet:$('moreSheet'), moreTitle:$('moreTitle'), rec:$('rec') };
+
+const META = {
+  blocked:{label:'需要授权',cls:'blocked',rank:0,group:'attention'},
+  done:{label:'已完成待处理',cls:'done',rank:1,group:'attention'},
+  working:{label:'工作中',cls:'working',rank:2,group:'working'},
+  idle:{label:'空闲',cls:'idle',rank:3,group:'idle'},
+  unknown:{label:'未知',cls:'unknown',rank:4,group:'idle'},
+};
+const meta = (s) => META[s] || META.unknown;
+const GROUP = { attention:'需要你', working:'工作中', idle:'空闲' };
+
+const LS = 'herdr_hub_token';
+(() => { const u = new URL(location.href); const t = u.searchParams.get('t');
+  if (t) { localStorage.setItem(LS, t); u.searchParams.delete('t'); history.replaceState(null,'',u.pathname+u.search+u.hash); } })();
+const TOKEN = localStorage.getItem(LS) || '';
+
+const S = { servers:[], active:0, open:null, mode:'chat', sig:'', snapTimer:null, chatTimer:null,
+  atBottom:true, lastKey:'', busy:false, cfg:{asr:{ready:false}}, recorder:null, chunks:[], recording:false, diag:null,
+  drafts:{}, draftKey:'',
+  switching:false, switchTarget:0, switchT:null, pendingRebuild:false,
+  recState:'idle', recTimer:null, recStart:0, recCancel:false };
+
+function syncVh(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;
+  document.documentElement.style.setProperty('--vh', h+'px');
+  // 键盘弹起只收缩 visualViewport，fixed 的 toast/录音条仍钉在布局视口底 → 抬到键盘上缘
+  const kb=Math.max(0,(window.innerHeight||0)-h);
+  document.documentElement.style.setProperty('--kb', kb+'px'); }
+syncVh();
+if (window.visualViewport){ visualViewport.addEventListener('resize',syncVh); visualViewport.addEventListener('scroll',syncVh); }
+addEventListener('orientationchange',()=>setTimeout(syncVh,220));
+
+// ── 磨砂栏高度：内容从栏底滚过（栏高已含刘海/Home 条安全区）
+function measureChrome(){
+  const set=(q,prop)=>{ const e=(typeof q==='string')?$(q):q; if(e) document.documentElement.style.setProperty(prop, e.offsetHeight+'px'); };
+  set('topbar','--top-h'); set(document.querySelector('#detail .nav'),'--nav-h'); set('composer','--comp-h');
+}
+measureChrome();
+if(window.ResizeObserver){
+  ['topbar','composer'].forEach(id=>{ const e=$(id); if(e) new ResizeObserver(measureChrome).observe(e); });
+  const navEl=document.querySelector('#detail .nav'); if(navEl) new ResizeObserver(measureChrome).observe(navEl);
+}
+addEventListener('load',measureChrome);
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(measureChrome).catch(()=>{});
+
+// ── 按压即时反馈：pointerdown 当帧 scale(.97)，不等 click（apple-design §1 Response）
+const HIT='button,summary,.row,.tab,.key,.cand,.act';
+let pressEl=null;
+function pressOff(){ if(pressEl){ pressEl.classList.remove('pressed'); pressEl=null; } }
+document.addEventListener('pointerdown',e=>{
+  const t=(e.target&&e.target.closest)?e.target.closest(HIT):null;
+  pressOff(); pressEl=t; if(t) t.classList.add('pressed');
+},{passive:true});
+document.addEventListener('pointerup',pressOff,{passive:true});
+document.addEventListener('pointercancel',pressOff,{passive:true});
+document.addEventListener('pointerleave',pressOff,{passive:true});
+addEventListener('blur',pressOff);
+
+// ── theme-color 跟随亮/暗主题
+const schemeMq=matchMedia('(prefers-color-scheme:dark)');
+function syncThemeColor(){ const m=document.querySelector('meta[name="theme-color"]');
+  if(m) m.content=schemeMq.matches?'#000000':'#F2F2F7'; }
+if(schemeMq.addEventListener) schemeMq.addEventListener('change',syncThemeColor);
+syncThemeColor();
+
+// ── 减弱动效：程序性滑动改即时跳转
+const RM=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+// ── iOS 手势 1/2：sheet 下拉关闭（抓手区起拖，1:1 跟手，松手按位移+速度提交）
+document.addEventListener('pointerdown', e=>{
+  if(RM()) return;
+  const sh=e.target&&e.target.closest?e.target.closest('.sheet.show'):null;
+  if(!sh) return;
+  if(e.target.closest&&e.target.closest('button,summary')) return;
+  if(e.clientY-sh.getBoundingClientRect().top>48) return;
+  const y0=e.clientY, t0=performance.now();
+  let dy=0, engaged=false, last={y:y0,t:t0};
+  const mv=ev=>{
+    const d=ev.clientY-y0;
+    if(!engaged){ if(d<=8) return; engaged=true; sh.style.transition='none'; }   // 8px 迟滞，区分点击
+    dy=Math.max(0,Math.min(d, sh.offsetHeight));
+    sh.style.transform='translateY('+dy+'px)';
+    last={y:ev.clientY,t:performance.now()};
+  };
+  const done=()=>{
+    document.removeEventListener('pointermove',mv);
+    document.removeEventListener('pointerup',done);
+    document.removeEventListener('pointercancel',done);
+    if(!engaged) return;
+    sh.style.transition=''; sh.style.transform='';                              // 清内联 → CSS 过渡接管
+    const v=(last.y-y0)/Math.max(1,last.t-t0)*1000;
+    if(dy>90||v>600) hideSheets();
+  };
+  document.addEventListener('pointermove',mv,{passive:true});
+  document.addEventListener('pointerup',done,{passive:true});
+  document.addEventListener('pointercancel',done,{passive:true});
+},{passive:true});
+
+// ── iOS 手势 2/2：详情左缘 24px 滑动返回（1:1 跟手；位移>35% 或速度>500px/s 提交）
+el.detail.addEventListener('pointerdown', e=>{
+  if(RM()||!el.detail.classList.contains('show')) return;
+  if(e.target.closest&&e.target.closest('button,textarea,a,summary')) return;
+  const r=el.detail.getBoundingClientRect();
+  if(e.clientX-r.left>24) return;
+  const x0=e.clientX, w=r.width, t0=performance.now();
+  let dx=0, engaged=false, last={x:x0,t:t0};
+  const mv=ev=>{
+    const d=ev.clientX-x0;
+    if(!engaged){ if(d<=8) return; engaged=true; el.detail.style.transition='none'; }
+    dx=Math.max(0,Math.min(d,w));
+    el.detail.style.transform='translateX('+dx+'px)';
+    last={x:ev.clientX,t:performance.now()};
+  };
+  const done=()=>{
+    document.removeEventListener('pointermove',mv);
+    document.removeEventListener('pointerup',done);
+    document.removeEventListener('pointercancel',done);
+    if(!engaged) return;
+    const v=(last.x-x0)/Math.max(1,last.t-t0)*1000;
+    const commit=dx>w*0.35||v>500;
+    el.detail.style.transition=''; el.detail.style.transform='';                // 内联清除与 .show 移除同帧生效
+    if(commit) closeDetail();
+  };
+  document.addEventListener('pointermove',mv,{passive:true});
+  document.addEventListener('pointerup',done,{passive:true});
+  document.addEventListener('pointercancel',done,{passive:true});
+},{passive:true});
+
+function api(path, opts){ const o=opts||{}; const sep=path.includes('?')?'&':'?';
+  const url = TOKEN ? path+sep+'t='+encodeURIComponent(TOKEN) : path;
+  const init={method:o.method||'GET',headers:{'x-hub-token':TOKEN}};
+  if(o.body){ init.headers['content-type']='application/json'; init.body=JSON.stringify(o.body); }
+  return fetch(url,init).then(r=>r.json()); }
+
+function toast(msg,err){ el.toast.textContent=msg; el.toast.className='show'+(err?' err':'');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>el.toast.className='',err?3600:1900); }
+
+const esc = (s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ── 统一 markdown 渲染器（卡片预览与对话详情共用同一实现）
+// 安全铁律：md() 入口先 esc() 转义，之后所有变换只在“已转义文本”上进行，
+// 且只插入这里硬编码的标签；绝不把未转义内容拼进 innerHTML（转写含代码/命令，防 XSS）。
+function mdInline(s){                     // s 已转义
+  const codes=[];
+  // 行内代码先摘出来占位，避免内部的 ** / [ ] 被当成粗体/链接
+  s=s.replace(/`([^`\n]+)`/g,(m,c)=>{codes.push(c);return '\u0001'+(codes.length-1)+'\u0001';});
+  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\[([^\]\n]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s=s.replace(/\u0001(\d+)\u0001/g,(m,i)=>'<code>'+codes[+i]+'</code>');
+  return s;
+}
+function mdTable(lines){                   // lines：已转义、以 | 开头的连续行
+  const cells=l=>l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+  const isSep=cs=>cs.length>0&&cs.every(c=>/^[\s:|-]*$/.test(c));
+  const parsed=lines.map(cells);
+  let head=null; const body=[];
+  for(let i=0;i<parsed.length;i++){
+    if(i+1<parsed.length&&isSep(parsed[i+1])){ head=parsed[i]; i++; continue; } // 表头 + 分隔行
+    if(isSep(parsed[i])||!parsed[i].some(c=>c)) continue;                       // 丢弃 |---| 分隔行
+    body.push(parsed[i]);
+  }
+  const th=head?'<thead><tr>'+head.map(c=>'<th>'+mdInline(c)+'</th>').join('')+'</tr></thead>':'';
+  const tb=body.map(r=>'<tr>'+r.map(c=>'<td>'+mdInline(c)+'</td>').join('')+'</tr>').join('');
+  return '<div class="tbl"><table class="mdt">'+th+'<tbody>'+tb+'</tbody></table></div>';   // 外层 .tbl 横向滚动
+}
+function mdBlocks(s){                      // s 已转义：按行做块级解析
+  const lines=s.split('\n'); const out=[]; let i=0;
+  const isTbl=l=>/^\s*\|/.test(l), isHead=l=>/^\s*#{1,6}\s+/.test(l),
+        isUl=l=>/^\s*[-*]\s+/.test(l), isOl=l=>/^\s*\d+\.\s+/.test(l);
+  while(i<lines.length){
+    const line=lines[i];
+    if(!line.trim()){ i++; continue; }
+    if(isTbl(line)){ const b=[]; while(i<lines.length&&isTbl(lines[i])){ b.push(lines[i]); i++; } out.push(mdTable(b)); continue; }
+    const h=line.match(/^\s*#{1,6}\s+(.*)$/);                 // 标题降级成加强文本，不出大标题
+    if(h){ out.push('<div class="h">'+mdInline(h[1])+'</div>'); i++; continue; }
+    if(isUl(line)){ const it=[]; while(i<lines.length&&isUl(lines[i])){ it.push('<div class="li">'+mdInline(lines[i].replace(/^\s*[-*]\s+/,''))+'</div>'); i++; } out.push(it.join('')); continue; }
+    if(isOl(line)){ const it=[]; while(i<lines.length&&isOl(lines[i])){ const m=lines[i].match(/^\s*(\d+)\.\s+(.*)$/); it.push('<div class="li">'+m[1]+'. '+mdInline(m[2])+'</div>'); i++; } out.push(it.join('')); continue; }
+    const buf=[];                                               // 普通段落：吃到空行/表格/列表/标题为止
+    while(i<lines.length&&lines[i].trim()&&!isTbl(lines[i])&&!isHead(lines[i])&&!isUl(lines[i])&&!isOl(lines[i])){ buf.push(lines[i]); i++; }
+    // 段落里行中残留的 ## ###（正文没断行时）一并清掉，保证详情不露标题符；单个 #（C# / #tag）不动
+    out.push('<p>'+mdInline(buf.join('\n')).replace(/\n/g,'<br>').replace(/(^|\s)#{2,}\s*/g,'$1')+'</p>');
+  }
+  return out.join('');
+}
+function md(text){                         // ``` 代码块先切出来 → <pre>，其余走块级解析
+  const src=String(text||''); const out=[]; const re=/```([\w+-]*)\n?([\s\S]*?)(?:```|$)/g;
+  let last=0,m;
+  while((m=re.exec(src))){ if(m.index>last) out.push(mdBlocks(esc(src.slice(last,m.index))));
+    out.push('<pre class="code">'+esc(m[2].replace(/\n$/,''))+'</pre>'); last=re.lastIndex; }
+  if(last<src.length) out.push(mdBlocks(esc(src.slice(last))));
+  return out.join('');
+}
+// 卡片预览：与详情同一渲染器 → 剥标签取纯文本 → 清残留格式符 → 再转义，保证不露 ##、**、`、|---|
+function mdPlain(text){
+  const t=md(text)
+    .replace(/<br\s*\/?>/gi,' ')
+    .replace(/<\/(div|p|li|tr|td|th|pre|thead|tbody|h[1-6])>/gi,' ')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')
+    .replace(/\*\*|__/g,'')                 // 粗体符（mdInline 已处理成对的，这里兜底未成对残留）
+    .replace(/`+/g,'')                       // 反引号
+    .replace(/(^|\s)#{1,6}\s+/g,'$1')        // 标题符 ## ###（服务端把预览压平成单行 → 行中也清；保留 C# / #tag）
+    .replace(/\|/g,' ')                      // 表格竖线：压平摘要里直接转空格
+    .replace(/-{3,}/g,' ')                   // 表格分隔线 / 分隔符 ---
+    .replace(/\s+/g,' ').trim();
+  return esc(t);
+}
+function rel(ts,known){ if(!known||!ts) return ''; const d=Date.now()-ts;
+  if(d<45000) return '刚刚'; const mi=Math.round(d/60000);
+  if(mi<60) return mi+'m'; const h=Math.round(mi/60); return h<24?h+'h':Math.round(h/24)+'d'; }
+const agentLabel = (a)=>!a.agent?'shell':(a.agent==='pi'?'π':a.agent);
+
+// ── 列表渲染
+function renderTabs(){
+  // sig 只看结构（服务器/计数/错误），不含 .on —— 选中态只切类，不重建 DOM、不扰动 scrollLeft
+  const html = S.servers.map((s,i)=>{
+    const cls='tab'+(s.ok?'':' err');
+    return `<button class="${cls}" data-i="${i}"><span class="sdot"></span>${esc(s.label)}<span class="n">${s.ok?s.agents.length:'!'}</span></button>`;
+  }).join('');
+  if(html!==renderTabs._sig){
+    if(pressEl&&el.tabs.contains(pressEl)) return;             // 按住 tab 时不重建（sig 未更新，下一拍必补）
+    const sl=el.tabs.scrollLeft;                                // 重建不丢 tab 条横滑位置
+    el.tabs.innerHTML=html; el.tabs.scrollLeft=sl; renderTabs._sig=html; }
+  // .on / aria-current 单独套用（节点级 patch，无 innerHTML）
+  const tbs=el.tabs.querySelectorAll('.tab');
+  for(let i=0;i<tbs.length;i++){ const on=(i===S.active);
+    tbs[i].classList.toggle('on',on);
+    if(on) tbs[i].setAttribute('aria-current','page'); else tbs[i].removeAttribute('aria-current'); }
+  // 只在选中分页真的变化时才居中，不把用户手动横滑的位置拽回去
+  if(S.active!==renderTabs._centered){
+    const on=el.tabs.querySelector('.tab.on');
+    if(on) on.scrollIntoView({inline:'center',block:'nearest',behavior:RM()?'auto':'smooth'});
+    renderTabs._centered=S.active;
+  }
+}
+function pageHtml(s){
+  if(!s.ok) return `<div class="srv-head"><span class="name">${esc(s.label)}</span><span class="meta">${esc(s.host)}</span></div>
+    <div class="srv-err"><b>连不上</b> · ${esc(s.error||'未知错误')}</div>
+    <div class="empty"><div class="eico">📡</div>这台服务器暂时没响应。<br>左右滑动可以切到别的服务器。</div>`;
+  const agents=s.agents.slice().sort((a,b)=>{ const d=meta(a.status).rank-meta(b.status).rank;
+    return d||a.repo.localeCompare(b.repo)||a.pane.localeCompare(b.pane); });
+  const head=`<div class="srv-head"><span class="name">${esc(s.label)}</span>
+    <span class="meta">${esc(s.host)} · ${agents.length} 个 agent</span></div>`;
+  if(!agents.length) return head+'<div class="empty"><div class="eico">📡</div>这台服务器上没有检测到 agent。</div>';
+  const b={attention:[],working:[],idle:[]};
+  for(const a of agents) b[meta(a.status).group].push(a);
+  let h=head;
+  for(const k of ['attention','working','idle']){
+    if(!b[k].length) continue;
+    h+=`<div class="grp">${GROUP[k]} · ${b[k].length}</div><div class="list">`;
+    for(const a of b[k]){
+      const m=meta(a.status), since=rel(a.since,a.sinceKnown);
+      h+=`<button class="row" data-server="${esc(s.id)}" data-pane="${esc(a.pane)}">
+        <span class="dot ${m.cls}"></span><span class="body">
+        <span class="l1"><span class="repo">${esc(a.repo||a.pane)}</span>
+          <span class="chip">${esc(agentLabel(a))}</span>
+          ${since?`<span class="time">${since}</span>`:''}</span>
+        ${a.preview?`<span class="pv">${mdPlain(a.preview)}</span>`:''}
+        <span class="l3"><span>${esc(a.pane)}</span><span class="st ${m.cls}">${esc(m.label)}</span>${a.focused?'<span class="focus">● 当前窗口</span>':''}</span>
+        </span></button>`;
+    }
+    h+='</div>';
+  }
+  return h;
+}
+function sigOf(){ return S.servers.map(s=>s.id+'|'+(s.ok?s.agents.map(a=>a.pane+a.status+(a.preview||'').slice(0,24)).join(','):'ERR')).join(';'); }
+function renderPager(force){
+  const sig=sigOf(); if(!force&&sig===S.sig) return;
+  if(S.switching){ S.pendingRebuild=true; return; }  // 切页动画进行中：挂起结构重建，动画结束由 endSwitch 补做
+  if(pressEl&&el.pager.contains(pressEl)) return;      // 手指正按在卡上：推迟一拍重建，别吞这次点击
+  const at=el.pager.scrollLeft;
+  const tops=Array.prototype.map.call(el.pager.children,c=>c.scrollTop);   // 保住每个分页的纵向阅读位置
+  el.pager.innerHTML=S.servers.map(s=>`<section class="page">${pageHtml(s)}</section>`).join('');
+  Array.prototype.forEach.call(el.pager.children,(c,i)=>{ c.scrollTop=tops[i]||0; });
+  el.pager.scrollLeft=at;
+  S.sig=sig;                                           // 重建成功后才记签名
+}
+function gotoPage(i,smooth){
+  S.active=i; S.switchTarget=i; S.switching=true;                       // 切页动画开始：挂起 scroll 回写与结构重建
+  clearTimeout(S.switchT); S.switchT=setTimeout(endSwitch,600);          // 兜底：动画没结算也按时解锁
+  renderTabs();
+  el.pager.scrollTo({left:i*el.pager.clientWidth,behavior:(smooth===false||RM())?'auto':'smooth'});
+  if(Math.abs(el.pager.scrollLeft-i*el.pager.clientWidth)<4) endSwitch(); // 本就停在目标页 → 立即结算
+}
+// 切页结算：解锁 scroll 回写，并补上动画期间挂起的结构重建
+function endSwitch(){ if(!S.switching) return; S.switching=false; clearTimeout(S.switchT);
+  if(S.pendingRebuild){ S.pendingRebuild=false; poll(false); } }
+el.pager.addEventListener('scroll',()=>{
+  const cw=Math.max(1,el.pager.clientWidth);
+  if(S.switching){                                   // 程序性平滑滚动中：不被中间帧把 active 冲回原页（否则药丸乱跳/闪回）
+    if(Math.abs(el.pager.scrollLeft-S.switchTarget*cw)<4) endSwitch();   // 到达目标即结算
+    return; }
+  const i=Math.round(el.pager.scrollLeft/cw);
+  if(i!==S.active&&i>=0&&i<S.servers.length){ S.active=i; renderTabs(); } },{passive:true});
+// 手指按到分页区（手动拖动）→ 立即交还控制权，让拖动来决定 active（不 flush，pending 交给下一拍轮询）
+el.pager.addEventListener('pointerdown',()=>{ if(S.switching){ S.switching=false; clearTimeout(S.switchT); } },{passive:true});
+el.tabs.addEventListener('click',(e)=>{ const b=e.target.closest('.tab'); if(b) gotoPage(Number(b.dataset.i)); });
+el.pager.addEventListener('click',(e)=>{ const r=e.target.closest('.row'); if(!r) return;
+  const s=S.servers.find(x=>x.id===r.dataset.server); const a=s&&s.agents.find(x=>x.pane===r.dataset.pane);
+  if(s&&a) openDetail(s,a); });
+
+// ── 详情
+function openDetail(s,a){
+  if(S.draftKey) S.drafts[S.draftKey]=el.text.value;   // 先存上一个会话的草稿，别串台
+  S.lastFocus=document.activeElement;              // 记住来源卡片，返回时还回焦点
+  S.open={server:s,agent:a}; S.mode='chat'; S.lastKey=''; S.diag=null;
+  el.vtoggle.setAttribute('aria-pressed','false'); el.vtoggle.style.color='';   // 换会话即复位视图切换状态
+  S.draftKey=s.id+'|'+a.pane;
+  el.text.value=S.drafts[S.draftKey]||''; autoGrow();
+  el.dt1.textContent=a.repo||a.pane;
+  el.ddot.className='dot '+meta(a.status).cls;
+  el.dt2.textContent=`${s.label} · ${a.pane} · ${agentLabel(a)} · ${meta(a.status).label}`;
+  el.chat.innerHTML='<div class="sys">载入中…</div>';
+  el.detail.classList.add('show'); el.detail.setAttribute('aria-hidden','false');
+  syncInert();
+  try{ el.back.focus({preventScroll:true}); }catch(e){}
+  syncSend();
+  S.atBottom=true; load();
+  clearInterval(S.chatTimer); S.chatTimer=setInterval(()=>{ if(!document.hidden) load(); }, 4000);
+}
+function closeDetail(){ stopSpeak();
+  if(S.recState==='recording'&&S.recorder){ S.recCancel=true; try{S.recorder.stop();}catch(e){} }  // 关详情顺手停掉在录的音
+  if(S.draftKey) S.drafts[S.draftKey]=el.text.value;   // 关闭时存下草稿
+  el.detail.classList.remove('show'); el.detail.setAttribute('aria-hidden','true');
+  syncInert();
+  if(S.lastFocus&&document.contains(S.lastFocus)){ try{ S.lastFocus.focus({preventScroll:true}); }catch(e){} }
+  S.lastFocus=null;
+  S.open=null; S.chatMsgs=null; clearInterval(S.chatTimer); S.chatTimer=null; hideSheets(); syncSend(); }
+el.back.addEventListener('click',closeDetail);
+
+async function load(force){
+  const o=S.open; if(!o) return;
+  if(S.binding) return;                       // 认领请求还在路上，别让轮询把面板又弹回来
+  if(S.mode==='screen') return loadScreen(force);
+  const r=await api(`/api/conversation?server=${encodeURIComponent(o.server.id)}&pane=${encodeURIComponent(o.agent.pane)}&limit=60`);
+  if(!S.open||S.open.agent.pane!==o.agent.pane) return;
+  S.diag=r;
+  if(r.ok){ renderChat(r,force); return; }
+  if(r.reason==='ambiguous'){ renderPick(r); return; }
+  el.chat.innerHTML = `<div class="sys">读不出对话记录（${esc(r.reason||'未知')}）</div>
+    <div class="empty">这台机器上的 herdr 没有告诉我们会话文件在哪。<br><br>
+    可以点右上角 <b>▤</b> 看原始终端屏幕，<br>或者点 <b>⋯</b> → 重新选择会话记录。</div>`;
+}
+
+function renderChat(r,force){
+  const key = r.messages.length+'|'+r.messages.map(m=>(m.text||m.input||m.output||'').length).join(',')+(r.more?'m':'');
+  if(!force && key===S.lastKey) return;
+  if(pressEl&&el.chat.contains(pressEl)) return;               // 手指正按在工具卡上：推迟一拍，别吞点击
+  if(!force && el.chat.querySelector('details[open]')) return; // 用户展开着内容在读：自动轮询让位（不记 key，折叠后下一拍补）
+  S.lastKey=key;
+  S.chatMsgs = r.messages;   // 供「朗读最后一条回复」取用
+  let h='';
+  if(r.more) h+=`<div class="sys">只显示最近 ${r.shown} 条，更早的已省略</div>`;
+  for(const m of r.messages) h+=msgHtml(m);
+  if(!r.messages.length) h='<div class="empty"><div class="eico">💬</div>这段会话记录还是空的。</div>';
+  const keep=S.atBottom?null:el.chat.scrollTop;        // 上翻读历史时重建不弹回底部/顶部
+  el.chat.innerHTML=h;
+  if(S.atBottom) el.chat.scrollTop=el.chat.scrollHeight;
+  else if(keep!=null) el.chat.scrollTop=keep;
+}
+function msgHtml(m){
+  if(m.kind==='thinking'){
+    return `<details class="think"><summary>💭 思考过程</summary><div class="tx">${esc(m.text)}</div></details>`;
+  }
+  if(m.kind==='call'||m.kind==='result'){
+    const cmd=(m.input||'').split('\n')[0].slice(0,90);
+    const out=(m.output||'').trim();
+    const size=out?`${(out.length/1024).toFixed(1)}KB 输出`:(m.pending?'运行中…':'无输出');
+    return `<details class="tool${m.isError?' err':''}"><summary>
+      <span class="arrow">›</span><span class="tname">${esc(m.tool||'工具')}</span>
+      <span class="tcmd">${esc(cmd)}</span><span style="flex:0 0 auto">${esc(size)}</span></summary>
+      <div class="inner">
+        ${m.input?`<div class="lbl">输入</div><pre>${esc(m.input)}</pre>`:''}
+        ${out?`<div class="lbl">${m.isError?'错误':'输出'}</div><pre>${esc(out)}</pre>`:''}
+      </div></details>`;
+  }
+  if(m.role==='user') return `<div class="msg user"><div class="bub">${md(m.text)}</div></div>`;
+  return `<div class="msg assistant"><div class="bub">${md(m.text)}</div></div>`;
+}
+
+async function loadScreen(force){
+  const o=S.open; if(!o) return;
+  const r=await api(`/api/screen?server=${encodeURIComponent(o.server.id)}&pane=${encodeURIComponent(o.agent.pane)}&lines=400`);
+  if(!S.open||S.open.agent.pane!==o.agent.pane||S.mode!=='screen') return;
+  const key='S'+((r.text||'').length);
+  if(!force&&key===S.lastKey) return;
+  S.lastKey=key;
+  el.chat.innerHTML = r.ok ? `<pre class="code" style="max-width:100%">${esc(r.text||'(空)')}</pre>`
+    : `<div class="sys">读取失败：${esc(r.error||'')}</div>`;
+  if(S.atBottom) el.chat.scrollTop=el.chat.scrollHeight;
+}
+// ── 读出来：把最后一条回复念给你听
+// 零基础设施，用的是系统自带的语音合成。适合不方便看屏幕的时候。
+let speaking = false;
+function speakable(text){
+  return String(text||'')
+    .replace(/```[\s\S]*?```/g,'（代码块）')
+    .replace(/`([^`]+)`/g,'$1')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g,'')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1')
+    // 表格分隔线整行丢掉，否则会念出一串「------」
+    .replace(/^[ \t]*\|?[ \t:|-]*-[ \t:|-]*\|[ \t:|-]*$/gm,'')
+    .replace(/^#{1,6}[ \t]*/gm,'')
+    .replace(/^[ \t]*[-*][ \t]+/gm,'')
+    .replace(/^[ \t]*>[ \t]?/gm,'')
+    .replace(/\|/g,' ')
+    .replace(/\*/g,'')
+    // 下划线是标识符的一部分（如 my_dataset_v2），换成空格让它读得通，绝不能不删
+    .replace(/_/g,' ')
+    .replace(/[ \t]+/g,' ')
+    .replace(/\s*\n\s*/g,' ')
+    .trim();
+}
+function stopSpeak(){ try{ speechSynthesis.cancel(); }catch(e){} speaking=false;
+  el.speak.style.color=''; el.speak.setAttribute('aria-pressed','false'); }
+function lastAssistantText(){
+  const o=S.open;
+  if(o && S.chatMsgs && S.chatMsgs.length){
+    for(let i=S.chatMsgs.length-1;i>=0;i--){
+      const m=S.chatMsgs[i];
+      if(m.role==='assistant'&&m.kind==='text'&&m.text) return m.text;
+    }
+  }
+  return '';
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return toast('这个浏览器不支持朗读',true);
+  if(speaking) return stopSpeak();
+  const clean = speakable(text).slice(0, 3000);
+  if(!clean) return toast('没有可朗读的内容',true);
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'zh-CN'; u.rate = 1.0;
+  try{
+    const vs = speechSynthesis.getVoices() || [];
+    const v = vs.find(x=>/zh[-_]?(CN|Hans)/i.test(x.lang)) || vs.find(x=>/^zh/i.test(x.lang));
+    if(v) u.voice = v;
+  }catch(e){}
+  u.onend = ()=>stopSpeak();
+  u.onerror = ()=>stopSpeak();
+  speaking = true; el.speak.style.color='var(--st-done)'; el.speak.setAttribute('aria-pressed','true');
+  try{ speechSynthesis.speak(u); }catch(err){ stopSpeak(); toast('朗读失败：'+err.message,true); }
+}
+el.speak.addEventListener('click',()=>{
+  if(speaking) return stopSpeak();
+  const o=S.open; if(!o) return;
+  if(S.mode==='screen') return toast('原始屏幕不太适合朗读，先切回对话视图',true);
+  const t = lastAssistantText();
+  if(!t) return toast('还没读到回复，稍等一下',true);
+  toast('正在朗读最后一条回复，再点一下停止');
+  speak(t);
+});
+
+el.vtoggle.addEventListener('click',()=>{
+  if(!S.open) return;
+  stopSpeak();
+  S.mode = S.mode==='chat'?'screen':'chat';
+  S.lastKey=''; el.vtoggle.style.color = S.mode==='screen' ? 'var(--st-done)' : '';
+  el.vtoggle.setAttribute('aria-pressed', String(S.mode==='screen'));
+  toast(S.mode==='screen'?'原始终端屏幕':'对话视图');
+  el.chat.innerHTML='<div class="sys">载入中…</div>'; load(true);
+});
+
+// ── 认领会话
+function renderPick(r){
+  const s=S.open.server;
+  el.pickWhy.innerHTML = `这台机器上的 herdr 没有上报会话文件路径，而 <b>${esc(s.label)}</b> 的
+    <span class="mono">${esc(S.open.agent.repo||'')}</span> 目录下有多个会话。挑一个，之后会记住。`;
+  const html=(r.candidates||[]).map((c,i)=>
+    `<button class="cand" data-i="${i}"><div class="cl">${esc(c.label||'(无内容)')}</div>
+     <div class="cm">${c.messages?c.messages+' 条记录 · ':''}${new Date(c.mtime).toLocaleDateString()} · ${esc(c.path.split('/').pop())}</div></button>`).join('')
+    || '<div class="empty">没有可用候选</div>';
+  if(html!==renderPick._sig){ el.pickList.innerHTML=html; renderPick._sig=html; }   // 4s 重入不重建列表、不抢焦点
+  S.pendingCands = r.candidates||[];
+  if(!el.pickSheet.classList.contains('show')){
+    el.chat.innerHTML='<div class="sys">需要先确认这是哪个会话</div>';
+    showSheet(el.pickSheet);
+  }
+}
+el.pickList.addEventListener('click', async (e)=>{
+  const b=e.target.closest('.cand'); if(!b||!S.open) return;
+  const c=S.pendingCands[Number(b.dataset.i)]; if(!c) return;
+  S.binding=true; hideSheets(); toast('正在绑定…');
+  try{
+    const r=await api('/api/bind',{method:'POST',body:{server:S.open.server.id,pane:S.open.agent.pane,path:c.path}});
+    if(!r.ok){ toast('绑定失败：'+(r.error||''),true); return; }
+    S.lastKey=''; toast('已记住');
+  } finally { S.binding=false; }
+  load(true);
+});
+
+// ── 面板
+let sheetOpener=null;
+// 焦点 containment：详情或任一 sheet 打开时，背景整体 inert（键盘/读屏不会陷进看不见的层）
+function syncInert(){
+  const sheets=[el.pickSheet,el.keySheet,el.moreSheet,$('pathSheet')];
+  const sheetOpen=sheets.some(x=>x&&x.classList.contains('show'));
+  const detailOpen=el.detail.classList.contains('show');
+  $('shell').inert = detailOpen||sheetOpen;
+  el.detail.toggleAttribute('inert', sheetOpen||!detailOpen);
+  // 收起的 sheet 整体 inert：Tab 落不进屏外的按键（含会送进终端的 Ctrl-C）
+  sheets.forEach(x=>{ if(x) x.toggleAttribute('inert', !x.classList.contains('show')); });
+}
+function showSheet(x){ sheetOpener=document.activeElement;
+  el.scrim.classList.add('show'); x.classList.add('show');
+  syncInert();                                  // 先解除该 sheet 的 inert，再把焦点送进去
+  const t=x.querySelector('h3'); if(t){ t.tabIndex=-1; try{ t.focus({preventScroll:true}); }catch(e){} } }
+function hideSheets(){ el.scrim.classList.remove('show');
+  document.querySelectorAll('.sheet').forEach(x=>x.classList.remove('show'));
+  syncInert();
+  if(sheetOpener&&document.contains(sheetOpener)){ try{ sheetOpener.focus({preventScroll:true}); }catch(e){} }
+  sheetOpener=null; }
+el.scrim.addEventListener('click',hideSheets);
+// Esc 关闭（输入框里按 Esc 不关，先让输入法收键盘）
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(e.target&&e.target.closest&&e.target.closest('textarea,input')) return;
+  if(document.querySelector('.sheet.show')) hideSheets();
+  else if(el.detail.classList.contains('show')) closeDetail();
+});
+el.kbd.addEventListener('click',()=>showSheet(el.keySheet));
+el.more.addEventListener('click',()=>{ if(!S.open) return; el.moreTitle.textContent=S.open.agent.repo||S.open.agent.pane; showSheet(el.moreSheet); });
+el.moreSheet.addEventListener('click', async (e)=>{
+  const b=e.target.closest('.act'); if(!b||!S.open) return;
+  const act=b.dataset.act; hideSheets();
+  if(act==='reload'){ load(true); toast('已刷新'); }
+  if(act==='repick'){
+    await api('/api/bind',{method:'POST',body:{server:S.open.server.id,pane:S.open.agent.pane,clear:true}});
+    S.lastKey=''; toast('已解绑，正在重新识别…'); load(true);
+  }
+  if(act==='path'){
+    const d=S.diag&&S.diag.diag;
+    $('pathTx').textContent=(S.diag&&S.diag.file)||(d&&d.shell)||'没有可显示的信息';
+    showSheet($('pathSheet'));
+  }
+});
+$('pathCopy').addEventListener('click',()=>{
+  const tx=$('pathTx').textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(tx).then(()=>toast('已拷贝')).catch(()=>toast('拷贝失败',true));
+  else toast('这个浏览器不支持一键拷贝，请长按选择',true);
+});
+el.keySheet.addEventListener('click', async (e)=>{
+  const b=e.target.closest('.key'); if(!b||!S.open) return;
+  hideSheets();
+  const r=await api('/api/key',{method:'POST',body:{server:S.open.server.id,pane:S.open.agent.pane,key:b.dataset.key}});
+  if(!r.ok) toast('按键失败：'+(r.error||''),true); else setTimeout(()=>load(true),400);
+});
+
+// ── 发送
+function syncSend(){ el.send.disabled = S.busy || !el.text.value.trim();   // 空输入即禁用
+  el.send.textContent = S.busy ? '…' : '↑';                              // 进行中态与空态可区分（aria-label 恒为"发送"）
+  el.send.setAttribute('aria-busy', S.busy?'true':'false'); }
+async function send(){
+  const o=S.open; if(!o||S.busy) return;
+  const text=el.text.value.trim(); if(!text) return;
+  const dk=S.draftKey;                       // 发出时锁定会话：响应回来时用户可能已切到别的 agent
+  S.busy=true; syncSend();
+  try{
+    const r=await api('/api/send',{method:'POST',body:{server:o.server.id,pane:o.agent.pane,text,enter:true}});
+    if(r.ok){
+      if(dk) S.drafts[dk]='';                                // 清的是"发出那通"的存档草稿
+      if(S.draftKey===dk){ el.text.value=''; autoGrow(); }    // 只有还停在同一会话才清输入框
+      toast(r.collapsed?'已发送（多行合并成单行）':'已发送');
+      S.atBottom=true; setTimeout(()=>load(true),700); setTimeout(()=>load(true),2500); }
+    else toast('发送失败：'+(r.error||''),true);
+  }catch(err){ toast('发送失败：'+err.message,true); }
+  finally{ S.busy=false; syncSend(); }
+}
+el.send.addEventListener('click',send);
+el.text.addEventListener('keydown',(e)=>{
+  if(e.isComposing||e.keyCode===229) return;                 // 中文输入法回车上屏：不触发发送，先把字放进框里
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); }
+});
+function autoGrow(){ el.text.style.height='auto'; el.text.style.height=Math.min(130,el.text.scrollHeight)+'px'; }
+el.text.addEventListener('input',autoGrow);
+el.text.addEventListener('input',syncSend);
+syncSend();
+
+// ── 语音输入：点 🎤 → 录音 → 停止/取消 → FormData POST 本地 faster-whisper (:8123) → 文本填进 #text
+// 状态机 idle → recording(红点+计时) → transcribing(加载) → filled / error；错误内联显示，绝不用 alert
+const ASR_URL='http://127.0.0.1:8123/v1/audio/transcriptions';
+function recUI(state,msg){
+  S.recState=state;
+  el.mic.classList.toggle('rec', state==='recording');
+  el.mic.classList.toggle('busy', state==='transcribing');
+  el.mic.setAttribute('aria-pressed', state==='recording'?'true':'false');
+  const cancel=$('recCancel'), bdot=el.rec.querySelector('.b');
+  if(cancel) cancel.style.display = (state==='recording')?'':'none';   // 只在录音中给“取消”
+  if(bdot) bdot.style.display = (state==='error')?'none':'';          // 报错时不要闪点
+  if(state==='idle'){ el.rec.classList.remove('show'); clearInterval(S.recTimer); S.recTimer=null; clearTimeout(S.recErrT); }
+  else { el.rec.classList.add('show'); if(msg!=null) $('recTx').textContent=msg; }
+}
+function recTimerTick(){
+  const s=Math.floor((Date.now()-S.recStart)/1000);
+  $('recTx').textContent='● 录音中 '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+' · 点一下停止';
+}
+function recErr(msg){                                    // 错误内联：借用 #rec 红条显示，3.6s 自动收起
+  recUI('error','⚠ '+msg);
+  clearTimeout(S.recErrT);
+  S.recErrT=setTimeout(()=>{ if(S.recState==='error') recUI('idle'); },3600);
+}
+async function startRec(){
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(err){ return recErr('拿不到麦克风：'+(err.message||err)); }
+  const types=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/aac'];
+  const mt=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  S.recorder=new MediaRecorder(stream, mt?{mimeType:mt}:undefined);
+  S.chunks=[]; S.recCancel=false;
+  S.recorder.ondataavailable=(e)=>{ if(e.data.size) S.chunks.push(e.data); };
+  S.recorder.onstop=async ()=>{
+    stream.getTracks().forEach(t=>t.stop());
+    const cancelled=S.recCancel, mime=S.recorder.mimeType||'audio/webm';
+    if(cancelled){ recUI('idle'); toast('已取消'); return; }
+    const blob=new Blob(S.chunks,{type:mime});
+    if(blob.size<1200){ recUI('idle'); return recErr('没录到声音'); }
+    await transcribe(blob,mime);
+  };
+  S.recorder.start();
+  S.recStart=Date.now(); recUI('recording'); recTimerTick();
+  S.recTimer=setInterval(recTimerTick,300);
+}
+async function transcribe(blob,mime){
+  recUI('transcribing','识别中…');
+  const ext=/mp4|m4a|aac/.test(mime)?'m4a':(/webm/.test(mime)?'webm':'ogg');
+  const fd=new FormData(); fd.append('file',blob,'recording.'+ext); fd.append('response_format','json');
+  try{
+    const res=await fetch(ASR_URL,{method:'POST',body:fd});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    const txt=String((j&&j.text)||'').trim();
+    if(!txt) throw new Error('识别结果为空');
+    el.text.value=(el.text.value?el.text.value.replace(/\s+$/,'')+' ':'')+txt;   // 填进 #text，不发送
+    autoGrow(); syncSend(); el.text.focus();
+    recUI('idle'); toast('已填入，确认后再发');
+  }catch(err){ recErr('识别失败：'+(err.message||err)); }
+}
+el.mic.addEventListener('click', async ()=>{
+  if(S.recState==='transcribing') return;                 // 识别中忽略连点
+  if(S.recState==='recording'){ stopRec(); return; }       // 录音中点同一按钮 → 停止并识别
+  if(!navigator.mediaDevices||!window.MediaRecorder) return recErr('这个浏览器不支持录音');
+  await startRec();
+});
+function stopRec(){ if(S.recorder&&S.recState==='recording'){ S.recCancel=false; try{S.recorder.stop();}catch(e){} } }
+const _recCancel=$('recCancel');
+if(_recCancel) _recCancel.addEventListener('click',(e)=>{ e.stopPropagation();
+  if(S.recorder&&S.recState==='recording'){ S.recCancel=true; try{S.recorder.stop();}catch(err){} } });
+
+el.chat.addEventListener('scroll',()=>{ const near=el.chat.scrollHeight-el.chat.scrollTop-el.chat.clientHeight<70; S.atBottom=near; },{passive:true});
+
+// ── 轮询
+async function poll(force){
+  try{
+    const focus = S.servers[S.active] ? S.servers[S.active].id : '';
+    const r=await api('/api/snapshot'+(focus?'?focus='+encodeURIComponent(focus):''));
+    if(!r.ok) throw new Error(r.error||'snapshot 失败');
+    const structural = force || S.servers.length!==r.servers.length;
+    S.servers=r.servers; el.hubdot.className='hub-dot on'; el.hubdot.title='';
+    if(S.open){ const s2=S.servers.find(x=>x.id===S.open.server.id);
+      const a2=s2&&s2.agents.find(x=>x.pane===S.open.agent.pane);
+      if(a2){ S.open.server=s2; S.open.agent=a2; el.ddot.className='dot '+meta(a2.status).cls;
+        el.dt2.textContent=`${s2.label} · ${a2.pane} · ${agentLabel(a2)} · ${meta(a2.status).label}`; } }
+    if(structural){
+      if(S.switching){ S.pendingRebuild=true; }       // 切页动画中：挂起重建、不记签名、不回写 scrollLeft（防闪回）
+      else if(pressEl&&el.pager.contains(pressEl)){ /* 按卡中：本轮不重建、不记签名，下拍轮询再来 */ }
+      else{
+        const tops=Array.prototype.map.call(el.pager.children,c=>c.scrollTop);
+        el.pager.innerHTML=S.servers.map(s=>`<section class="page">${pageHtml(s)}</section>`).join('');
+        Array.prototype.forEach.call(el.pager.children,(c,i)=>{ c.scrollTop=tops[i]||0; });
+        S.sig=sigOf(); renderTabs(); el.pager.scrollLeft=S.active*el.pager.clientWidth;
+      }
+    }
+    else { renderPager(force); renderTabs(); }
+  }catch(err){
+    const wasOn=el.hubdot.classList.contains('on');          // 在改 className 之前取"状态翻转"信号
+    el.hubdot.className='hub-dot'; el.hubdot.title='轮询失败：'+(err.message||'');
+    if(force||wasOn) toast('刷新失败：'+(err.message||''),true);   // 只在翻转/手动刷新时报，连挂不刷屏
+  }
+}
+el.refresh.addEventListener('click',async ()=>{ el.refresh.classList.add('spin'); await poll(true);
+  setTimeout(()=>el.refresh.classList.remove('spin'),450); });
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ clearInterval(S.snapTimer); S.snapTimer=null; }
+  else { poll(false); startPoll(); if(S.open) load(); }
+});
+function startPoll(){ clearInterval(S.snapTimer); S.snapTimer=setInterval(()=>{ if(!document.hidden) poll(false); },6000); }
+
+(async function boot(){
+  el.pager.innerHTML='<section class="page"><div class="skel"></div><div class="skel"></div><div class="skel"></div></section>';
+  try{ S.cfg=await api('/api/config'); }catch(e){}
+  if(navigator.mediaDevices&&window.MediaRecorder) el.mic.style.display='grid';   // 语音直连本地 :8123，不依赖 hub 的 asr.ready
+  await poll(true);
+  if(S.servers.length) gotoPage(0,false);
+  startPoll();
+})();
+if(!TOKEN) api('/api/ping').then(r=>{ if(!r.ok) toast('缺少访问令牌，请用带 ?t= 的完整网址打开',true); });
+})();
+</script>
+</body>
+</html>

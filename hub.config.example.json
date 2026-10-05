@@ -1,0 +1,13 @@
+{
+  "_note": "可选配置。asr 是你本机语音模型的接口 —— 填好 url 之后手机端的麦克风按钮立刻可用，不需要改任何代码。",
+  "_asr_contract": "hub 会向 asr.url 发一个 multipart/form-data 请求：字段 file=音频二进制（webm/m4a/wav），外加可选的 language / model；你的服务返回 JSON {\"text\": \"...\"} 即可（whisper.cpp server 的 /inference 和 OpenAI 兼容的 /v1/audio/transcriptions 都符合）。",
+
+  "asr": {
+    "url": "http://127.0.0.1:8123/v1/audio/transcriptions",
+    "token": "",
+    "language": "zh",
+    "field": "file",
+    "model": "",
+    "timeoutMs": 60000
+  }
+}
