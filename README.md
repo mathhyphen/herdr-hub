@@ -13,15 +13,11 @@
 
 herdr-hub 的答案就一句话：**打开一个 URL → 看谁需要你 → 点一下放行。**
 
-## 截图（合成演示，全部为虚构数据）
+## 演示（12 镜 · 33 秒 · 虚构数据）
 
-| 列表页：谁需要你、谁空闲 | 详情页 + ⌨ 键盘面板一键放行 |
-|---|---|
-| <img width="240" alt="列表页" src="_demo/video/s1.png"> | <img width="240" alt="详情与键盘面板" src="_demo/video/s5.png"> |
-
-<img width="320" alt="跨服务器一览" src="_demo/video/s12.png">
-
-<img width="360" alt="演示动图（12 镜分镜，虚构数据）" src="_demo/video/herdr_ui_final.gif">
+<p align="center">
+  <img width="300" alt="herdr-hub 演示：三服务器分页 · 对话详情 · ⌨ 键盘面板一键放行 · 🎤 语音输入（全部为虚构数据）" src="_demo/video/herdr_ui_final.gif">
+</p>
 
 > 图中的服务器名 / 项目名 / 路径 / 对话全部是编造的演示数据，已过隐私自查（逐帧目视转录，禁词 `residual={}`、verdict `PASS`，证据见 `_demo/video/privacy_check.txt`，该文件不随仓库发布）。
 
