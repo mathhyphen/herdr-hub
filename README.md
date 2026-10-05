@@ -17,11 +17,11 @@ herdr-hub 的答案就一句话：**打开一个 URL → 看谁需要你 → 点
 
 | 列表页：谁需要你、谁空闲 | 详情页 + ⌨ 键盘面板一键放行 |
 |---|---|
-| ![列表页](_demo/video/s1.png) | ![详情与键盘面板](_demo/video/s5.png) |
+| <img width="240" alt="列表页" src="_demo/video/s1.png"> | <img width="240" alt="详情与键盘面板" src="_demo/video/s5.png"> |
 
-![跨服务器一览](_demo/video/s12.png)
+<img width="320" alt="跨服务器一览" src="_demo/video/s12.png">
 
-![演示动图](_demo/video/herdr_ui_final.gif)
+<img width="360" alt="演示动图（12 镜分镜，虚构数据）" src="_demo/video/herdr_ui_final.gif">
 
 > 图中的服务器名 / 项目名 / 路径 / 对话全部是编造的演示数据，已过隐私自查（逐帧目视转录，禁词 `residual={}`、verdict `PASS`，证据见 `_demo/video/privacy_check.txt`，该文件不随仓库发布）。
 
